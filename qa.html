@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Question Answering</title>
+</head>
+<body>
+    <h1>Question Answering</h1>
+    <form method="POST">
+        <label for="question">Question:</label>
+        <input type="text" id="question" name="question" required>
+        <br>
+        <label for="context">Context:</label>
+        <textarea id="context" name="context" required></textarea>
+        <br>
+        <button type="submit">Ask</button>
+    </form>
+    {% if result %}
+    <h2>Answer:</h2>
+    <p>{{ result['answer'] }}</p>
+    {% endif %}
+    <a href="{{ url_for('index') }}">Back to Home</a>
+</body>
+</html>
