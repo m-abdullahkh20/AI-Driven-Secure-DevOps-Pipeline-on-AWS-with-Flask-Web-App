@@ -10,10 +10,10 @@ app = Flask(__name__)
 app.secret_key = 'your-secret-key'
 
 # Configure MySQL database
-app.config['MYSQL_HOST'] = ""
-app.config['MYSQL_USER'] = "mysql_user"
-app.config['MYSQL_PASSWORD'] = "your-password"
-app.config['MYSQL_DB'] = ""
+app.config['MYSQL_HOST'] = "db-server-ip"  # Add your MySQL host
+app.config['MYSQL_USER'] = "user"
+app.config['MYSQL_PASSWORD'] = "your-passwd"  # Add your MySQL password
+app.config['MYSQL_DB'] = "db-name"
 mysql = MySQL(app)
 
 # Initialize Flask-Login
@@ -23,7 +23,7 @@ login_manager.login_view = 'login'
 
 # Initialize AI services
 openai.api_key = os.getenv('OPENAI_API_KEY')
-sentiment_analyzer = pipeline('sentiment-analysis',model='distilbert-base-uncased-finetuned-sst-2-english')
+sentiment_analyzer = pipeline('sentiment-analysis', model='distilbert-base-uncased-finetuned-sst-2-english')
 comprehend = boto3.client('comprehend', region_name='us-east-1')
 
 # User model for Flask-Login
@@ -38,8 +38,11 @@ def load_user(user_id):
     cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
     user = cursor.fetchone()
     if user:
-        return User(user['id'], user['username'])
+        # Assuming the columns are in the order: id, username, password
+        return User(user[0], user[1])  # Adjust indices based on your columns
     return None
+
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -67,10 +70,11 @@ def login():
         cursor.execute("SELECT * FROM users WHERE username = %s AND password = %s", (username, password))
         user = cursor.fetchone()
         if user:
-            user_obj = User(user['id'], user['username'])
+            # user[0] is id, user[1] is username
+            user_obj = User(user[0], user[1])
             login_user(user_obj)
             session['loggedin'] = True
-            session['username'] = user['username']
+            session['username'] = user[1]  # user[1] is username
             return redirect(url_for('index'))
         else:
             flash('Invalid username or password.', 'danger')
@@ -109,7 +113,7 @@ def question_answer():
         except Exception as e:
             answer = f"An error occurred: {str(e)}"
         return render_template('question_answer.html', question=question, answer=answer)
-    return render_template('question_answer.html')
+    return render_template('qa.html')
 
 @app.route('/sentiment_analysis', methods=['GET', 'POST'])
 @login_required
@@ -128,7 +132,7 @@ def image_classification():
         image = request.files['image']
         classification_result = "dummy classification result"  # Replace with actual result
         return render_template('image_classification.html', classification_result=classification_result)
-    return render_template('image_classification.html')
+    return render_template('image.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
