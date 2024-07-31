@@ -1,0 +1,8 @@
+##create database for user login##
+CREATE DATABASE login;
+USE login;
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(150) NOT NULL UNIQUE,
+    password VARCHAR(150) NOT NULL
+);
