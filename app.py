@@ -1,7 +1,6 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 import openai
-from transformers import pipeline
 import boto3
 from flask_mysqldb import MySQL
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -10,10 +9,10 @@ app = Flask(__name__)
 app.secret_key = 'your-secret-key'
 
 # Configure MySQL database
-app.config['MYSQL_HOST'] = "db-server-ip"  # Add your MySQL host
-app.config['MYSQL_USER'] = "user"
-app.config['MYSQL_PASSWORD'] = "your-passwd"  # Add your MySQL password
-app.config['MYSQL_DB'] = "db-name"
+app.config['MYSQL_HOST'] = ''
+app.config['MYSQL_USER'] = 'mysql'
+app.config['MYSQL_PASSWORD'] = ''
+app.config['MYSQL_DB'] = 'alnafi'
 mysql = MySQL(app)
 
 # Initialize Flask-Login
@@ -21,9 +20,10 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# Initialize AI services
+# Initialize OpenAI API
 openai.api_key = os.getenv('OPENAI_API_KEY')
-sentiment_analyzer = pipeline('sentiment-analysis', model='distilbert-base-uncased-finetuned-sst-2-english')
+
+# Initialize AWS Comprehend
 comprehend = boto3.client('comprehend', region_name='us-east-1')
 
 # User model for Flask-Login
@@ -41,8 +41,6 @@ def load_user(user_id):
         # Assuming the columns are in the order: id, username, password
         return User(user[0], user[1])  # Adjust indices based on your columns
     return None
-
-
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -109,7 +107,7 @@ def question_answer():
             )
             answer = response.choices[0].message['content'].strip()
         except openai.error.RateLimitError:
-            answer = fallback_answer_generator(question, max_length=100)[0]['generated_text'].strip()
+            answer = "Sorry, the service is currently experiencing high demand. Please try again later."
         except Exception as e:
             answer = f"An error occurred: {str(e)}"
         return render_template('question_answer.html', question=question, answer=answer)
@@ -120,8 +118,8 @@ def question_answer():
 def sentiment_analysis():
     if request.method == 'POST':
         text = request.form['text']
-        result = sentiment_analyzer(text)
-        sentiment = result[0]['label']
+        result = comprehend.detect_sentiment(Text=text, LanguageCode='en')
+        sentiment = result['Sentiment']
         return render_template('sentiment_analysis.html', text=text, sentiment=sentiment)
     return render_template('sentiment_analysis.html')
 
@@ -135,4 +133,4 @@ def image_classification():
     return render_template('image.html')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host=0.0.0.0,debug=True)
