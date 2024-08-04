@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-app
+  labels:
+    app: flask-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: flask-app
+  template:
+    metadata:
+      labels:
+        app: flask-app
+    spec:
+      containers:
+      - name: flask-app
+        image: 339712870605.dkr.ecr.ap-south-1.amazonaws.com/flask-app:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: mysql_host
+          value: "rdc.ct8o4kk8ce00.ap-south-1.rds.amazonaws.com"
+        - name: mysql_user
+          value: "admin"
+        - name: mysql_passwd
+          value: "Khan..8090"
+        - name: mysql_db
+          value: "login"
+
