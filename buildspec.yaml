@@ -1,0 +1,66 @@
+version: 0.2
+env:
+  variables:
+    AWS_REGION: ""
+    CLUSTER_NAME: ""
+    AWS_ACCESS_KEY_ID: ""
+    AWS_SECRET_ACCESS_KEY: ""
+phases:
+  install:
+    runtime-versions:
+      python: 3.8
+    commands:
+      - echo Installing dependencies...
+      # Download and install the latest stable version of kubectl
+      - curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+      - chmod +x kubectl
+      - mv kubectl /usr/local/bin/
+
+      # Verify kubectl installation
+      - kubectl version --client
+
+      # Install AWS CLI
+      - pip install awscli
+      - pip install -r requirements.txt
+
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+      - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+      - aws configure set region $AWS_REGION
+
+      # Download kubeconfig file from S3
+      - mkdir -p /root/.kube
+      - aws s3 cp s3://lyour-bucket-name/kubeconfig /root/.kube/config
+
+      # Update kubeconfig
+      - aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin id.dkr.ecr.your-region.amazonaws.com
+      - echo Build started on `date`
+
+  build:
+    commands:
+      - echo Building the Docker image...
+      - docker build -t flask-app .
+      - docker tag flask-app:latest id.dkr.ecr.your-region.amazonaws.com/flask-app:latest
+      - echo Pushing the Docker image to ECR...
+      - docker push id.dkr.ecr.your-region.amazonaws.com/flask-app:latest
+      - echo Build completed on `date`
+
+  post_build:
+    commands:
+      # Download the deployment.yaml file from S3
+      - aws s3 cp s3://your-bucketname/deployment.yaml deployment.yaml
+
+      # Apply Kubernetes manifests to deploy the application
+      - kubectl apply -f deployment.yaml
+
+artifacts:
+  files:
+    - '**/*'
+  discard-paths: yes
+
+cache:
+  paths:
+    - '/root/.cache/pip'
